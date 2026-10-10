@@ -1,4 +1,6 @@
-# MotionStudio — local prototype
+# MotionStudio v0.2 — local prototype
+
+**Updating from v0.1? Read UPDATE-v02.md first. Keep your existing .env.**
 
 A complete runnable source project for a gesture-controlled drawing workspace, with optional Gemini, ElevenLabs, and Tiger Data connections. This is a hackathon prototype, not a finished Photoshop replacement.
 
@@ -111,7 +113,7 @@ npm test
 npm run build
 ```
 
-The TypeScript/production build and three backend-validation tests were run successfully during creation. Backend status and missing-credential handling were also checked. Automated visual/browser testing could not be completed because the environment could not obtain a browser binary. Webcam tracking and real provider requests were not tested with a camera or credentials. Run the first-test checklist above on your Mac.
+The TypeScript/production build and eight gesture/backend-validation tests were run successfully during creation. Backend status and missing-credential handling were also checked. Automated visual/browser testing could not be completed because the environment could not obtain a browser binary. Webcam tracking and real provider requests were not tested with a camera or credentials. Run the first-test checklist above on your Mac.
 
 ## Current limits / next work
 

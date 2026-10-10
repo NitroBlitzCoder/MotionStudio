@@ -1,0 +1,7 @@
+/** Pure gesture controls, independent of the webcam or React. */
+export const defaults={smoothing:.24,pinch:.32,release:.52,dwell:110,dialSpeed:15};
+export function readConfig(){try{const x=JSON.parse(localStorage.getItem('motion-controls-v2')||'{}');return {...defaults,...Object.fromEntries(Object.entries(x).filter(([k,v])=>k in defaults&&typeof v==='number'&&Number.isFinite(v)))}}catch{return {...defaults}}}
+export function smooth(previous,next,amount,dt=33){if(!previous)return next;const a=1-Math.pow(1-amount,Math.min(100,Math.max(1,dt))/33);return {x:previous.x+(next.x-previous.x)*a,y:previous.y+(next.y-previous.y)*a}}
+export function pinchState(state,ratio,time,cfg){const wants=ratio<(state.down?cfg.release:cfg.pinch);if(wants===state.down)return {...state,since:null};const since=state.since??time;return time-since>=cfg.dwell?{down:wants,since:null}:{...state,since}}
+export function dialDelta(previous,angle,radius){if(radius<24||previous===null)return 0;let d=angle-previous;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return Math.abs(d)>.4?0:Math.abs(d)<.012?0:d}
+export function calibration(open,closed){if(open.length<12||closed.length<12)return null;const median=a=>[...a].sort((x,y)=>x-y)[Math.floor(a.length/2)];const o=median(open),c=median(closed);if(o-c<.3)return null;return {pinch:Math.max(.12,Math.min(.65,c+(o-c)*.23)),release:Math.max(.25,Math.min(.95,c+(o-c)*.48))}}

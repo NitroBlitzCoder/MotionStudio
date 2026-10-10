@@ -1,0 +1,7 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {defaults,pinchState,dialDelta,calibration,smooth} from '../src/gestureMath.mjs';
+test('pinch must persist and release has a separate threshold',()=>{let s={down:false,since:null};s=pinchState(s,.2,0,defaults);assert.equal(s.down,false);s=pinchState(s,.2,120,defaults);assert.equal(s.down,true);s=pinchState(s,.4,150,defaults);assert.equal(s.down,true);s=pinchState(s,.8,180,defaults);assert.equal(s.down,true);s=pinchState(s,.8,300,defaults);assert.equal(s.down,false)});
+test('brief detection noise cannot toggle pinch',()=>{let s={down:false,since:null};s=pinchState(s,.2,0,defaults);s=pinchState(s,.8,60,defaults);s=pinchState(s,.2,90,defaults);assert.equal(s.down,false);assert.equal(s.since,90)});
+test('dial rejects center motion and jumps but handles angle wrap',()=>{assert.equal(dialDelta(0,.1,5),0);assert.equal(dialDelta(0,2,60),0);assert.ok(Math.abs(dialDelta(3.1,-3.1,60)-.083185307)<.00001);assert.equal(dialDelta(null,.2,60),0)});
+test('calibration requires distinct poses and enough samples',()=>{assert.equal(calibration([1],[.2]),null);assert.equal(calibration(Array(20).fill(.4),Array(20).fill(.3)),null);const r=calibration(Array(20).fill(1.2),Array(20).fill(.15));assert.ok(r.pinch<r.release);assert.ok(r.pinch>.15)});
+test('time-normalized smoothing is consistent across frame rates',()=>{const a={x:0,y:0},b={x:100,y:100};const once=smooth(a,b,.25,66);const twice=smooth(smooth(a,b,.25,33),b,.25,33);assert.ok(Math.abs(once.x-twice.x)<.0001)});
