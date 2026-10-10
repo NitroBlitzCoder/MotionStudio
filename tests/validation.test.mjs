@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {proposalSchema,eventsSchema} from '../server/validation.mjs';
+test('rejects unsafe or unsupported model actions',()=>{for(const action of [{type:'size',value:999},{type:'color',value:'javascript:bad'},{type:'delete',value:'all'},{type:'opacity',value:-1}])assert.equal(proposalSchema.safeParse({explanation:'test',actions:[action]}).success,false)});
+test('accepts bounded editing operations',()=>{assert.equal(proposalSchema.safeParse({explanation:'Violet pen',actions:[{type:'color',value:'#7064ef'},{type:'tool',value:'pen'}]}).success,true)});
+test('rejects oversized event batches and invalid session ids',()=>{assert.equal(eventsSchema.safeParse({session:'no',events:[]}).success,false);assert.equal(eventsSchema.safeParse({session:crypto.randomUUID(),events:Array(101).fill({id:crypto.randomUUID(),time:new Date().toISOString(),kind:'stroke',value:1})}).success,false)});
