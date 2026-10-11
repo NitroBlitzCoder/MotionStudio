@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {originAllowed} from '../server/origins.mjs';
+test('production accepts only exact configured browser origins',()=>{const allowed=['https://motion.vercel.app'];assert.equal(originAllowed(allowed[0],allowed,true),true);for(const o of ['https://evil.vercel.app','https://motion.vercel.app.evil.com','http://localhost:5173'])assert.equal(originAllowed(o,allowed,true),false)});
+test('development still supports local Vite and non-browser health checks',()=>{assert.equal(originAllowed('http://localhost:5173',[],false),true);assert.equal(originAllowed(undefined,[],true),true)});

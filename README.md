@@ -1,14 +1,10 @@
-# MotionStudio v0.2 — local prototype
+# MotionStudio v0.3
 
-**Updating from v0.1? Read UPDATE-v02.md first. Keep your existing .env.**
+Gesture drawing, Gemini sketch-to-diagram, and ElevenLabs voice commands with Nib, an animated studio companion. This is a local hackathon prototype.
 
-A complete runnable source project for a gesture-controlled drawing workspace, with optional Gemini, ElevenLabs, and Tiger Data connections. This is a hackathon prototype, not a finished Photoshop replacement.
+## Start
 
-## Start on your Mac in VS Code
-
-1. Install Node.js 22.12+ (a current LTS version is recommended).
-2. Unzip this folder and open **motion-studio** in VS Code.
-3. Choose Terminal → New Terminal. Run:
+Use Node.js 22.12+ (recent LTS preferred). Open this folder in VS Code:
 
 ```bash
 npm ci
@@ -16,130 +12,97 @@ cp .env.example .env
 npm run dev
 ```
 
-4. Open the local address Vite prints, normally http://127.0.0.1:5173.
-5. Keep the terminal running. Ctrl+C stops both the frontend and backend.
+Only copy .env.example if you do NOT already have .env. Open the Vite Local URL, normally http://127.0.0.1:5173. Port 3001 is the backend and will show Cannot GET / at its root. Keep the terminal running.
 
-No Python, virtual environment, global npm install, or Docker is required. Dependencies stay in this folder's node_modules. The ZIP excludes node_modules and generated build output. Delete node_modules when you no longer need the installed packages; restore with npm ci. Keep package-lock.json.
+Updating an existing project? See UPDATE-v03.md. No packages were added since v0.2, but both the frontend and backend changed, and the new shared folder is required.
 
-## Included
+## What works
 
-- Dark workspace, right-side pen/brush/marker/eraser rack, color palette and size dial.
-- Mouse/trackpad drawing, smoothed points, opacity, undo/redo (50 project changes), clear ink, PNG export.
-- Save/open a project JSON including the photo and strokes. Save explicitly before closing; there is no autosave.
-- Webcam hand tracking using MediaPipe; mirrored cursors; drawing-hand selector and label swap.
-- Pinch to select tools; release, then pinch on canvas to draw. Tracking loss ends strokes and requires reopening the hand.
-- Secondary-hand palette selection and circle-to-adjust size while pinching the size dial.
-- Photo import (PNG/JPEG/WebP, under 10 MB); fit to canvas, position, scale, rotation, brightness, contrast, saturation; independently visible photo and drawing layers.
-- Gemini text requests → validated, reviewable editor actions.
-- ElevenLabs spoken guide and optional spoken applied edits, with stop/mute.
-- Tiger Data batched timestamped events and per-minute session insights.
+- Pen, marker, brush and eraser; color/size/opacity; undo/redo; clear ink; PNG export.
+- Save/open JSON projects including photos, strokes and diagram objects. Save explicitly before closing. No autosave.
+- MediaPipe webcam gestures, calibrated pinch thresholds, smoothed two-hand cursors, tool pickup, secondary-hand colors and circular size control.
+- Photo import (PNG/JPEG/WebP under 10 MB), position/scale/rotation, brightness/contrast/saturation and layer visibility.
+- Gemini sends a canvas snapshot for interpretation into clean rectangles, ellipses, arrows and labels. Review a preview before applying; inspect/edit each accepted object's label, geometry and colors.
+- ElevenLabs transcribes an explicitly started microphone recording; a limited command parser applies supported tool/color/size/opacity commands.
+- Nib responds visually to listening, actual microphone level, processing, success and errors. It is a code-drawn animated UI character, not an AI conversation agent.
+- Tiger Data stores event batches and exposes per-minute session insights.
 
-## First test
+## Gemini configuration
 
-Draw a line with the mouse. Try undo/redo, marker, and eraser. Export PNG. Save a project, refresh, and reopen it. Import a photo and change its brightness. The eraser only removes drawing ink; it does not damage the photo below it.
+Get a key: https://aistudio.google.com/apikey
 
-Then enable hand tracking in desktop Chrome. Allow camera access and wait for model loading. Keep your hand open first. Hover over a pen and pinch, release, move onto canvas, and pinch again to draw. An outlined circle follows the drawing hand. The green cursor is the other hand.
+```dotenv
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-3.1-flash-lite
+```
 
-Use **Swap detected hands** if handedness appears reversed. Changing handedness stops the camera; enable it again. Avoid crossed/overlapping hands. Tracking uses normalized thumb/index distance and a release threshold to avoid rapid pinch toggling. It remains sensitive to lighting and camera angle; test it before a live demo. Mouse drawing is disabled while camera mode is active. Escape stops the camera. Other hand: pinch a color swatch or start a pinch within the visible size ring, then circle around its center. The palette is always visible in this version.
+Restart the server. Draw a simple flowchart. In Assist, add optional clarification and click Clean up diagram. This sends the visible canvas as JPEG plus your note to Google. No continuous camera frames are sent. Preview and uncertainty notes appear before Use diagram. Applying replaces the diagram layer and hides original ink without deleting it. Undo restores the prior project. To see/add original ink again, enable Drawing in Photo.
 
-## Credentials (optional)
+Accepted objects are edited through the Assist inspector dropdown and fields, not by direct dragging yet. Arrows have separate end coordinates x2/y2. Labels and connections can be misinterpreted: review them. Invalid geometry is rejected rather than drawn. If the project changes while Gemini is working, generate a new preview before applying. A snapshot can contain an imported photo: do not click if you do not want the visible image sent.
 
-Edit `.env` in VS Code. Never paste secrets into src/, prefix them with VITE_, or commit .env.
+The old text-based Suggest an edit feature has been replaced. Model availability depends on your Google account. Official model code: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite
 
-### Gemini
+## ElevenLabs voice configuration
 
-Set GEMINI_API_KEY and a supported GEMINI_MODEL in your Google AI account. The configurable default is gemini-2.5-flash. Restart npm run dev. Use the Assist tab: “Use a violet marker at 24 pixels” or, after importing a photo, “Set saturation to 125”. Review and Apply.
+In your ElevenLabs API key settings enable **Speech to Text → Access**. Text-to-Speech access is no longer required for this version.
 
-The backend requests JSON and validates every operation with Zod. Unsupported or invalid output is rejected. This prototype sends only your prompt and whether a photo exists; it does NOT send the image. It cannot analyze photo contents, remove backgrounds, generate images, or perform arbitrary edits. Settings affect future strokes. Undo covers canvas/photo changes, not brush settings. Model availability depends on your account.
+```dotenv
+ELEVENLABS_API_KEY=your_key
+ELEVENLABS_STT_MODEL_ID=scribe_v2
+```
 
-### ElevenLabs
+No voice ID is needed. Old ELEVENLABS_VOICE_ID and ELEVENLABS_MODEL_ID values are ignored and may be removed. Restart the server. Click Nib (the small robot above the lower-right footer), allow microphone access, speak, and click again to send. Recording stops after eight seconds at most. Nib can also be clicked with a drawing-hand pinch. The microphone is released after recording, before transcription. There is no always-on recording or wake word.
 
-Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID (a voice your account can use). The model is configurable through ELEVENLABS_MODEL_ID. Restart. In Assist, choose Hear gesture guide or enable Speak applied edits. This is text-to-speech, not speech recognition. Audio is generated only on request and can incur provider charges.
+Supported examples (one command per recording):
 
-### Tiger Data
+- Change to brush / switch to pen / use the eraser / select marker.
+- Change color to blue / set color to red / use green.
+- Set size to twenty pixels / set brush size to 40. Range 1–120.
+- Set opacity to fifty percent / set opacity to 80 percent. Range 5–100%.
 
-Create a Tiger Data service and copy its TLS connection string into DATABASE_URL. Use the provider's required TLS configuration; certificate verification is not disabled in this project.
+Colors: red, blue, green, yellow, orange, purple/violet, pink, black, white, brown, gray/grey, teal.
+
+Recordings are uploaded to ElevenLabs via the backend. The app does not store the audio file. ElevenLabs' provider data policies still apply. Nib displays the transcript and applies recognized non-destructive settings; unknown, negated, compound or out-of-range commands do nothing. This is batch transcription, so settings change after recording/upload/transcription, not continuously as you speak. Text-to-speech narration and spoken onboarding have been removed.
+
+Official STT docs: https://elevenlabs.io/docs/eleven-api/guides/cookbooks/speech-to-text
+
+## Tiger Data
+
+Set DATABASE_URL to your service's actual PostgreSQL connection string, retaining required TLS parameters. Then:
 
 ```bash
 npm run db:init
 npm run dev
 ```
 
-The init command creates a Timescale hypertable and an index; it does not delete data. Once configured, editor events upload every five seconds, up to 100 per batch. Open Assist and Refresh session insights to query strokes, tracking gaps and mean sampled inference duration per minute. Status dots indicate credentials exist, not verified service health. Errors appear in the footer.
+Draw several strokes, wait five seconds, then Assist → Refresh session insights. Events include strokes, settings, tracking gaps and sampled model inference time. Inference time is NOT end-to-end camera latency. Batches run independently of drawing. An in-memory queue retries failed uploads and is capped at 2,000 events; closing the page can lose unuploaded events. Session identifiers reset on reload. Events do not include audio, pictures or canvas snapshots. Full replay/continuous aggregate materialization is not implemented.
 
-The queue is in memory, capped at 2,000 events. Failed uploads retry; events can be lost on page close or queue overflow. Events use UUIDs and a time/id key to deduplicate retries. Refresh starts a new session. Stored events contain no photos, webcam video, hand coordinates or prompts. This is telemetry, not full session replay. SQL uses time_bucket directly; continuous aggregate materialization is not implemented.
+## Hands and calibration
 
-## Project structure
+Enable camera, choose drawing hand, swap detected labels if needed, then restart tracking. Calibrate control hand: open thumb/index for four seconds, then pinch for four seconds. Open both hands afterward. Calibration and sensitivity settings persist in this browser. Low Responsiveness smooths jitter with added lag; greater Pinch confirmation requires a steadier pinch. Calibration samples the secondary hand and uses the thresholds for both hands.
 
-```text
-motion-studio/
-  src/
-    App.tsx              Workspace and shared interaction handlers
-    model.ts             Project schema, image cache, canvas renderer
-    gestures.ts          Webcam lifecycle and MediaPipe inference
-    api.ts               API helper and batched telemetry queue
-    main.tsx             React entry
-    style.css            Workspace styling
-  server/
-    index.mjs            Loopback-only API and provider adapters
-    validation.mjs       Bounded edit and event schemas
-    init-db.mjs          Database initialization command
-    schema.sql           Timescale schema
-  tests/
-    validation.test.mjs  Invalid model output and event validation
-  .env.example
-  package.json
-  package-lock.json
-  tsconfig.json
-  vite.config.ts
-  index.html
-```
+Hover a tool and pinch; release before pinching on the canvas. Secondary hand: pinch a color swatch or the dial, then circle. Dial center movement and sudden angular jumps are ignored. Tracking loss stops drawing and requires an open hand before reactivation. Spatial continuity reduces brief handedness flips; overlapping hands pause input. Keep both hands in view and separated. Mouse drawing is disabled during camera mode. Escape stops camera.
 
-The server uses JavaScript ES modules; the frontend uses TypeScript. React, MediaPipe, Express, pg, dotenv and Zod are installed by npm ci, together with the development tools. No API SDK is required: Gemini and ElevenLabs use server-side HTTP requests.
+## Structure
 
-## Architecture
+- src/App.tsx: editor state, undo/history, gestures and workspace.
+- src/model.ts: project validation and canvas renderer.
+- src/DiagramPanel.tsx: snapshot, preview and shape inspector.
+- src/VoiceCompanion.tsx: microphone lifecycle, transcription and Nib.
+- src/gestures.ts + gestureMath.mjs: MediaPipe and gesture math.
+- src/api.ts: backend requests and telemetry queue.
+- shared/diagram.mjs: schema used by client and server.
+- shared/commands.mjs: explicit supported voice grammar.
+- server/index.mjs: local routes, Gemini, ElevenLabs and PostgreSQL.
+- server/schema.sql + init-db.mjs: Tiger Data initialization.
+- tests/: gesture, command and schema validation.
 
-Mouse and MediaPipe → editor operations → project state/undo → Canvas → PNG/JSON.
-Assistant panel → local API → Gemini → validated preview → editor operations.
-Guide/applied response → local API → ElevenLabs → browser audio.
-Session events → in-memory batch → local API → Tiger Data → session insights.
+## Verification and limits
 
-Drawing remains local and is independent of provider response times. MediaPipe inference currently runs on the main thread and may stutter on slower devices. A worker/offscreen-rendering implementation is future work.
+npm run build passes. All 11 unit tests pass. Mocked-provider route checks verified diagram JSON/image payloads, multipart STT uploads, and invalid-request rejection. Those are not live provider tests. No credentials or microphone/webcam were available to test actual recognition or model output. Browser rendering/animation has not been visually verified in this environment. Test on your Mac before presenting.
 
-## Verification
+Fixed 1200×800 canvas; two raster layers plus one diagram layer. No arbitrary layer ordering, masks, crop tool, zoom/pan, pressure or background removal. Shape labels can require manual correction. Large stroke/photo histories consume memory; history is capped at 50 changes. Inference and rendering are main-thread work and can stutter on slower hardware. Internet needed for installation, model/WASM downloads and sponsor APIs. Canvas/gesture math runs locally. API keys remain on the backend.
 
-```bash
-npm test
-npm run build
-```
+API errors are now labeled Gemini, ElevenLabs or Tiger Data. A self-signed certificate error still requires fixing certificate trust in your own Node/network/database setup; this revision does not disable TLS verification. Repeated Tiger Data errors can occur from background uploads. Temporarily comment DATABASE_URL and restart to isolate services. Recent Node releases can use NODE_OPTIONS=--use-system-ca npm run dev if the necessary certificate is trusted by your OS. Never set NODE_TLS_REJECT_UNAUTHORIZED=0.
 
-The TypeScript/production build and eight gesture/backend-validation tests were run successfully during creation. Backend status and missing-credential handling were also checked. Automated visual/browser testing could not be completed because the environment could not obtain a browser binary. Webcam tracking and real provider requests were not tested with a camera or credentials. Run the first-test checklist above on your Mac.
-
-## Current limits / next work
-
-- Fixed 1200 × 800 artboard and two layers. No arbitrary layer ordering, layer masks, crop tool, canvas zoom/pan, or full replay yet.
-- Photo sliders handle positioning/resizing/rotation; direct manipulation handles are future work.
-- No automatic shape recognition, pressure-sensitive input, image-aware AI, or voice commands.
-- Rendering replays strokes per frame and retains photo images/history in memory. Very long drawings or many large images can consume RAM; save and reopen a project to clear history.
-- Only supported editor buttons and color swatches respond to gestures. Other controls use mouse/keyboard.
-- Internet needed for npm installation, MediaPipe WASM/model downloads, optional Google Fonts, and sponsor APIs. Webcam frames stay in your browser.
-- Camera permission requires localhost or HTTPS. This project is configured for local development. Do not expose its API publicly without authentication, user-specific authorization, and production deployment work.
-- npm run build checks and creates frontend assets; npm run dev is the supported full-stack local launch. Preview serves frontend only.
-
-## Troubleshooting
-
-- npm not found: install Node LTS and restart VS Code.
-- Wrong folder: the terminal must be in the folder containing package.json.
-- Camera fails: close other camera apps, check browser permission, internet/model access, and use desktop Chrome on localhost.
-- Slow tracking: close intensive apps, improve lighting, reduce canvas complexity.
-- API 503: missing .env credentials or database setup. Restart after editing .env.
-- API 502: check provider key, quota/model permissions or database connection; no simulated success is substituted.
-- Port busy: close the other dev server. If changing backend PORT, also change the proxy target in vite.config.ts.
-
-## Official references
-
-- https://vite.dev/guide/
-- https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker/web_js
-- https://ai.google.dev/gemini-api/docs/structured-output
-- https://elevenlabs.io/docs/api-reference/text-to-speech/convert
-- https://www.tigerdata.com/docs/learn/hypertables/creating-and-configuring-hypertables
+Local development only: backend binds to 127.0.0.1, with no public authentication/deployment setup. Do not expose it publicly without implementing those controls. Keep .env ignored in Git. npm run build builds frontend assets; npm run dev is the full-stack local launcher.

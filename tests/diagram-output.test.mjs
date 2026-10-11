@@ -1,0 +1,7 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {normalizeDiagram,outputSchema} from '../server/diagram-output.mjs';
+const box={type:'rectangle',x:1100,y:740,width:200,height:100,label:'Preserve me',fill:'#fff',stroke:'#123'};
+const payload=s=>({explanation:'Diagram',uncertainties:[],shapes:[s]});
+test('fits modest overflow, fills unused endpoints, expands hex, preserves labels',()=>{const d=normalizeDiagram(payload(box));assert.equal(d.shapes[0].x,1000);assert.equal(d.shapes[0].y,700);assert.equal(d.shapes[0].x2,0);assert.equal(d.shapes[0].label,'Preserve me');assert.equal(d.shapes[0].fill,'#ffffff');assert.equal(d.uncertainties.length,1)});
+test('handles horizontal arrows with zero height and numeric strings',()=>{const d=normalizeDiagram(payload({...box,type:'arrow',x:'20',y:50,x2:300,y2:50,width:280,height:0}));assert.equal(d.shapes[0].height,1);assert.equal(d.shapes[0].x,20);assert.equal(d.shapes[0].x2,300)});
+test('does not invent arrow endpoints or accept extreme/invalid geometry',()=>{assert.throws(()=>normalizeDiagram(payload({...box,type:'arrow'})));assert.throws(()=>normalizeDiagram(payload({...box,x:90000})));assert.throws(()=>normalizeDiagram(payload({...box,x:'abc'})))});
+test('schema declares all renderer fields',()=>{assert.ok(outputSchema.properties.shapes.items.required.includes('x2'));assert.equal(outputSchema.properties.shapes.maxItems,40)});

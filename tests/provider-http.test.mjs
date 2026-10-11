@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {safeProviderMessage} from '../server/provider-http.mjs';
+test('exposes actionable provider error while redacting credentials',()=>{assert.equal(safeProviderMessage({error:{message:'Invalid field responseJsonSchema'}}),'Invalid field responseJsonSchema');assert.equal(safeProviderMessage({error:{message:'bad test-secret'}},['test-secret']),'bad [redacted]');assert.equal(safeProviderMessage({detail:{message:'API key sk_test_secret is invalid'}}),'API key [redacted] is invalid')});
+test('non-JSON or missing message produces readable fallback',()=>{assert.match(safeProviderMessage(null),/without a readable/)});

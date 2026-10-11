@@ -12,3 +12,15 @@ export function mapHandToScreen(hand,width,height,reach=defaults.reach){
  const axis=(value,extent)=>{const size=Math.max(1,extent),inset=Math.min(2,size/2);return Math.max(inset,Math.min(size-inset,(.5+(value-.5)*gain)*size))};
  return {x:axis(hand.x,width),y:axis(hand.y,height)};
 }
+
+/** Captured dial cursor: radial drift changes neither its radius nor its owner.
+ * @param {{x:number,y:number}} point
+ * @param {{x:number,y:number}} center
+ * @param {number} radius
+ * @param {number|null} previousAngle
+ */
+export function dialPoint(point,center,radius,previousAngle=null){
+ const dx=point.x-center.x,dy=point.y-center.y;
+ const angle=Math.hypot(dx,dy)<24?(previousAngle??-Math.PI/2):Math.atan2(dy,dx);
+ return {x:center.x+Math.cos(angle)*radius,y:center.y+Math.sin(angle)*radius,angle};
+}

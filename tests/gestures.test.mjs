@@ -1,7 +1,13 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {defaults,pinchState,dialDelta,calibration,smooth} from '../src/gestureMath.mjs';
+import {defaults,pinchState,dialDelta,calibration,smooth,mapHandToScreen} from '../src/gestureMath.mjs';
 test('pinch must persist and release has a separate threshold',()=>{let s={down:false,since:null};s=pinchState(s,.2,0,defaults);assert.equal(s.down,false);s=pinchState(s,.2,120,defaults);assert.equal(s.down,true);s=pinchState(s,.4,150,defaults);assert.equal(s.down,true);s=pinchState(s,.8,180,defaults);assert.equal(s.down,true);s=pinchState(s,.8,300,defaults);assert.equal(s.down,false)});
 test('brief detection noise cannot toggle pinch',()=>{let s={down:false,since:null};s=pinchState(s,.2,0,defaults);s=pinchState(s,.8,60,defaults);s=pinchState(s,.2,90,defaults);assert.equal(s.down,false);assert.equal(s.since,90)});
 test('dial rejects center motion and jumps but handles angle wrap',()=>{assert.equal(dialDelta(0,.1,5),0);assert.equal(dialDelta(0,2,60),0);assert.ok(Math.abs(dialDelta(3.1,-3.1,60)-.083185307)<.00001);assert.equal(dialDelta(null,.2,60),0)});
 test('calibration requires distinct poses and enough samples',()=>{assert.equal(calibration([1],[.2]),null);assert.equal(calibration(Array(20).fill(.4),Array(20).fill(.3)),null);const r=calibration(Array(20).fill(1.2),Array(20).fill(.15));assert.ok(r.pinch<r.release);assert.ok(r.pinch>.15)});
 test('time-normalized smoothing is consistent across frame rates',()=>{const a={x:0,y:0},b={x:100,y:100};const once=smooth(a,b,.25,66);const twice=smooth(smooth(a,b,.25,33),b,.25,33);assert.ok(Math.abs(once.x-twice.x)<.0001)});
+
+test('reach preserves screen center and increases travel',()=>{assert.deepEqual(mapHandToScreen({x:.5,y:.5},1000,800),{x:500,y:400});assert.deepEqual(mapHandToScreen({x:.6,y:.6},1000,800,2),{x:700,y:560});assert.deepEqual(mapHandToScreen({x:.6,y:.6},1000,800,1),{x:600,y:480})});
+test('central camera travel reaches all edges without leaving hit-test bounds',()=>{assert.deepEqual(mapHandToScreen({x:.2,y:.2},1000,800),{x:2,y:2});assert.deepEqual(mapHandToScreen({x:.8,y:.8},1000,800),{x:998,y:798});assert.deepEqual(mapHandToScreen({x:-.1,y:1.1},1000,800),{x:2,y:798})});
+
+test('captured wheel cursor stays on its rim despite radial drift',async()=>{const {dialPoint}=await import('../src/gestureMath.mjs');const c={x:100,y:100};for(const point of [{x:140,y:100},{x:1000,y:100},{x:30,y:50}]){const p=dialPoint(point,c,64);assert.ok(Math.abs(Math.hypot(p.x-c.x,p.y-c.y)-64)<1e-9)}assert.equal(dialPoint({x:100,y:101},c,64,.7).angle,.7)});
+test('wheel rotation crosses angle wrap without a large jump',async()=>{const {dialPoint}=await import('../src/gestureMath.mjs');const c={x:0,y:0};const p=dialPoint({x:-100,y:-1},c,64);assert.ok(Math.abs(dialDelta(3.13,p.angle,64))<.03)});

@@ -4,10 +4,20 @@ import pg from 'pg';
 import {z} from 'zod';
 import {eventsSchema} from './validation.mjs';
 import {normalizeDiagram,validationSummary} from './diagram-output.mjs';
+import {originAllowed} from './origins.mjs';
 import {remote} from './provider-http.mjs';
 const app=express(),pool=process.env.DATABASE_URL?new pg.Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:6000,max:3}):null;
-// Local development API: binds to loopback; no permissive CORS.
-app.use((req,res,next)=>{const o=req.headers.origin;if(o&&!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o))return res.status(403).json({error:'Local origins only'});next()});
+const production=process.env.NODE_ENV==='production';
+const allowedOrigins=(process.env.ALLOWED_ORIGINS||'').split(',').map(v=>v.trim()).filter(Boolean);
+app.disable('x-powered-by');
+app.use((req,res,next)=>{
+ const origin=req.headers.origin;
+ if(!originAllowed(origin,allowedOrigins,production))return res.status(403).json({error:'This website is not allowed to use the API'});
+ if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.vary('Origin');res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');}
+ if(req.method==='OPTIONS')return res.sendStatus(204);
+ res.setHeader('Cache-Control','no-store');next();
+});
+app.get('/health',(_req,res)=>res.json({ok:true,service:'MotionStudio API',version:'0.4.0'}));
 app.use(express.json({limit:'3mb'}));
 const hits=new Map();app.use('/api',(req,res,next)=>{const key=req.path,now=Date.now();let h=hits.get(key);if(!h||now-h.start>60000){h={start:now,n:0};hits.set(key,h)}if(++h.n>(key==='/events'?60:30))return res.status(429).json({error:'Please wait before trying again'});next()});
 app.get('/api/status',(req,res)=>res.json({gemini:!!process.env.GEMINI_API_KEY,voice:!!process.env.ELEVENLABS_API_KEY,database:!!pool}));
@@ -21,4 +31,5 @@ app.post('/api/transcribe',express.raw({type:['audio/*','video/webm','applicatio
 app.post('/api/events',async(req,res)=>{if(!pool)return res.status(503).json({error:'Tiger Data is not configured'});const b=eventsSchema.parse(req.body);if(b.events.length){await pool.query(`INSERT INTO motion_events (time,id,session,kind,value) SELECT x.time,x.id,$1,x.kind,x.value FROM jsonb_to_recordset($2::jsonb) AS x(time timestamptz,id uuid,kind text,value double precision) ON CONFLICT(time,id) DO NOTHING`,[b.session,JSON.stringify(b.events)])}res.json({saved:b.events.length})});
 app.get('/api/insights/:session',async(req,res)=>{if(!pool)return res.status(503).json({error:'Tiger Data is not configured'});const session=z.string().uuid().parse(req.params.session);const r=await pool.query("SELECT time_bucket('1 minute',time) AS minute, count(*) FILTER(WHERE kind='stroke')::int AS strokes,count(*) FILTER(WHERE kind='tracking_lost')::int AS interruptions,round(avg(value) FILTER(WHERE kind='inference_ms')::numeric,1) AS inference_ms FROM motion_events WHERE session=$1 AND time > now()-interval '1 day' GROUP BY 1 ORDER BY 1 DESC LIMIT 30",[session]);res.json(r.rows)});
 app.use((err,req,res,next)=>{const service=req.path.startsWith('/api/events')||req.path.startsWith('/api/insights')?'Tiger Data':req.path.includes('diagram')?'Gemini':req.path.includes('transcribe')?'ElevenLabs':'API';console.error(`[${service}]`,err.cause?.message||err.message);res.status(err instanceof z.ZodError?400:502).json({error:err instanceof z.ZodError?'Invalid request or provider output':String(err.cause?.message||err.message||'Service unavailable').startsWith(service+':')?String(err.cause?.message||err.message):`${service}: ${err.cause?.message||err.message||'Service unavailable'}`})});
-app.listen(Number(process.env.PORT)||3001,'127.0.0.1',()=>console.log('MotionStudio API: http://127.0.0.1:3001'));
+const port=Number(process.env.PORT)||3001;
+app.listen(port,production?'0.0.0.0':'127.0.0.1',()=>console.log(`MotionStudio API listening on port ${port}`));
